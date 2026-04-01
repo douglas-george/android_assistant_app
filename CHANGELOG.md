@@ -1,5 +1,9 @@
 # Sweetbriar Android App — Changelog
 
+## 2026-04-01 — FCM Reserved Key Fix
+
+- Renamed `data["message_type"]` to `data["msg_type"]` in PushService to match server-side FCM payload rename (`message_type` is a reserved FCM key)
+
 ## 2026-04-01 — Project Bootstrap
 
 **Initial project setup:**

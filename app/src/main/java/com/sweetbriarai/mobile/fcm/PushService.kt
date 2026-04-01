@@ -41,7 +41,7 @@ class PushService : FirebaseMessagingService() {
 
         val data = remoteMessage.data
         val messageId = data["message_id"]?.toIntOrNull() ?: return
-        val messageType = data["message_type"] ?: "info"
+        val messageType = data["msg_type"] ?: "info"
         val sender = data["sender_label"] ?: "Advisor"
         val text = data["message_text"] ?: ""
         val options = data["response_options"]?.split(",")?.map { it.trim() }
