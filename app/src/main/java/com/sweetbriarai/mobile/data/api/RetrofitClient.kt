@@ -1,5 +1,6 @@
 package com.sweetbriarai.mobile.data.api
 
+import com.sweetbriarai.mobile.BuildConfig
 import com.sweetbriarai.mobile.data.auth.AuthManager
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -18,18 +19,19 @@ object RetrofitClient {
             chain.proceed(request)
         }
 
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-
-        val client = OkHttpClient.Builder()
+        val clientBuilder = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
-            .build()
+
+        if (BuildConfig.DEBUG) {
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            clientBuilder.addInterceptor(loggingInterceptor)
+        }
 
         return Retrofit.Builder()
             .baseUrl(authManager.apiUrl)
-            .client(client)
+            .client(clientBuilder.build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(MobileApiService::class.java)

@@ -5,29 +5,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.google.firebase.messaging.FirebaseMessaging
-import com.sweetbriarai.mobile.data.api.RegisterDeviceRequest
-import com.sweetbriarai.mobile.data.api.RetrofitClient
-import com.sweetbriarai.mobile.data.auth.AuthManager
-import com.sweetbriarai.mobile.data.repository.MessageRepository
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.sweetbriarai.mobile.ui.viewmodel.SettingsViewModel
 
 @Composable
-fun SettingsScreen(navController: NavController) {
-    val context = LocalContext.current
-    val authManager = remember { AuthManager(context) }
-    val scope = rememberCoroutineScope()
+fun SettingsScreen(navController: NavController, viewModel: SettingsViewModel = viewModel()) {
+    val isRegistering by viewModel.isRegistering.collectAsState()
+    val statusMessage by viewModel.statusMessage.collectAsState()
+    val registrationComplete by viewModel.registrationComplete.collectAsState()
 
-    var apiUrl by remember { mutableStateOf(authManager.apiUrl) }
-    var bearerToken by remember { mutableStateOf(authManager.bearerToken) }
-    var isRegistering by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var apiUrl by remember { mutableStateOf(viewModel.authManager.apiUrl) }
+    var bearerToken by remember { mutableStateOf(viewModel.authManager.bearerToken) }
+
+    LaunchedEffect(registrationComplete) {
+        if (registrationComplete) {
+            navController.navigate("message_list") {
+                popUpTo("settings") { inclusive = true }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -60,21 +59,7 @@ fun SettingsScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                scope.launch {
-                    try {
-                        statusMessage = "Testing connection..."
-                        authManager.apiUrl = apiUrl
-                        authManager.bearerToken = bearerToken
-                        val apiService = RetrofitClient.create(authManager)
-                        val repository = MessageRepository(authManager, apiService)
-                        repository.health()
-                        statusMessage = "Connection successful!"
-                    } catch (e: Exception) {
-                        statusMessage = "Connection failed: ${e.message}"
-                    }
-                }
-            },
+            onClick = { viewModel.testConnection(apiUrl, bearerToken) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Test Connection")
@@ -83,32 +68,7 @@ fun SettingsScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            onClick = {
-                scope.launch {
-                    isRegistering = true
-                    statusMessage = null
-                    try {
-                        authManager.apiUrl = apiUrl
-                        authManager.bearerToken = bearerToken
-                        val fcmToken = FirebaseMessaging.getInstance().token.await()
-                        val request = RegisterDeviceRequest(
-                            device_name = android.os.Build.MODEL,
-                            fcm_token = fcmToken,
-                            app_version = "1.0"
-                        )
-                        val apiService = RetrofitClient.create(authManager)
-                        val repository = MessageRepository(authManager, apiService)
-                        val response = repository.registerDevice(request)
-                        authManager.deviceId = response.device_id
-                        statusMessage = "Device registered successfully!"
-                        navController.navigate("message_list")
-                    } catch (e: Exception) {
-                        statusMessage = "Registration failed: ${e.message}"
-                    } finally {
-                        isRegistering = false
-                    }
-                }
-            },
+            onClick = { viewModel.registerDevice(apiUrl, bearerToken) },
             enabled = !isRegistering,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -117,7 +77,11 @@ fun SettingsScreen(navController: NavController) {
 
         statusMessage?.let {
             Spacer(modifier = Modifier.height(16.dp))
-            Text(it, color = if (it.contains("failed")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            Text(
+                it,
+                color = if (it.contains("failed")) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
